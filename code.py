@@ -616,3 +616,81 @@ tGetRec.join()
 
 print("Recommendations: ", respGRec[0])
 
+
+
+#---------------------------------------------------------------------------------
+
+#Use relevant ML Model(s) Optimize Revenue
+
+#---------------------------------------------------------------------------------
+
+
+"""
+Factors that influence Revenue include:
+    "Total Quantity"
+    "Number of customers"
+    "Gross margin%"
+    "Average Order Frequency"
+    "Average Order Value"
+    """
+rev_data = cleaned_df.copy()
+rev_data["ORDER TIME"] = rev_data["ORDER TIME"].apply(pd.to_datetime, errors='coerce')
+rev_data = rev_data.set_index("ORDER TIME")#.resample('1D')
+rev_data = rev_data.resample('1D').agg(
+                    {
+                        'QUANTITY': 'sum',
+                        'CUSTOMER ID': 'nunique',
+                        'TOTAL PRICE': 'sum',
+                        'TOTAL COST PRICE': 'sum',
+                        'ORDER ID': 'nunique'
+                    }
+                    )
+new_columns = ['total_quantity', 'number_of_customers', 'sales_prics', 'cost_prics', 'unique_orders'  ]
+rev_data.columns = new_columns
+index = rev_data.index
+index.name = "Date"
+
+rev_data["Gross_margin%"] = ((rev_data["sales_prics"] - rev_data["cost_prics"])/rev_data["sales_prics"])*100.0
+rev_data["Average_Order_Frequency"] = rev_data["unique_orders"]/rev_data["number_of_customers"] 
+rev_data["Average_Order_Value"] = rev_data["sales_prics"]/rev_data["unique_orders"] 
+rev_data["net_revenue"] = (rev_data["number_of_customers"] * rev_data["Average_Order_Frequency"] * 
+                           rev_data["Average_Order_Value"] * rev_data["Gross_margin%"])
+
+
+# Set up the revenue model
+
+# Using Skicit-learn to split data into training and testing sets
+from sklearn.model_selection import train_test_split
+
+# Separate the predicted/target feature from the predicting features
+X =  rev_data.drop(['net_revenue'], axis=1) # Features
+y = rev_data['net_revenue'] # Label
+
+# Split train and test datasets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 4)
+
+# Instantiate model with 
+regr = ElasticNet( alpha=0.00025, l1_ratio= 0.90, random_state=0, max_iter=200000, normalize=True)
+regr.fit(X, y)
+
+# Get the model coefficients
+model_coef = regr.coef_
+model_coef
+
+# Instantiate a dictionary to hold the features and their coefficients
+coef_dict = {}
+for x, i in zip(X.columns.values, model_coef):
+    coef_dict[x] = i
+
+print("The revenue model features and their coefficients are ")
+print(coef_dict)
+
+#Set up the revenue objective function for optimization using the features coefficients
+
+def revenue_fxn(tot_qty, n_cust, s_price, c_price, uniq_ord, av_ord_freq, av_ord_val, g_marg_per):
+    rev = (tot_qty*(1138.26) - 12081.76*n_cust + 3.6630*s_price - 0.3912*c_price + 11824.110*uniq_ord 
+           - 994118.52*av_ord_freq + 25.669151*av_ord_val + 3005946.736*g_marg_per)
+    return -1*rev
+
+
+
