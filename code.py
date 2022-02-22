@@ -687,10 +687,8 @@ print(coef_dict)
 
 #Set up the revenue objective function for optimization using the features coefficients
 
-def revenue_fxn(tot_qty, n_cust, s_price, c_price, uniq_ord, av_ord_freq, av_ord_val, g_marg_per):
-    rev = (tot_qty*(1138.26) - 12081.76*n_cust + 3.6630*s_price - 0.3912*c_price + 11824.110*uniq_ord 
+revenue_fxn = (tot_qty*(1138.26) - 12081.76*n_cust + 3.6630*s_price - 0.3912*c_price + 11824.110*uniq_ord 
            - 994118.52*av_ord_freq + 25.669151*av_ord_val + 3005946.736*g_marg_per)
-    return -1*rev
 
 
 
