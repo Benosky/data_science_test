@@ -633,6 +633,9 @@ Factors that influence Revenue include:
     "Average Order Frequency"
     "Average Order Value"
     """
+
+# Load, engineer and prepare the required data
+
 rev_data = cleaned_df.copy()
 rev_data["ORDER TIME"] = rev_data["ORDER TIME"].apply(pd.to_datetime, errors='coerce')
 rev_data = rev_data.set_index("ORDER TIME")#.resample('1D')
@@ -657,9 +660,9 @@ rev_data["net_revenue"] = (rev_data["number_of_customers"] * rev_data["Average_O
                            rev_data["Average_Order_Value"] * rev_data["Gross_margin%"])
 
 
-# Set up the revenue model
+# Predict optimum revenue
 
-# Using Skicit-learn to split data into training and testing sets
+## Using Skicit-learn to split data into training and testing sets
 from sklearn.model_selection import train_test_split
 
 # Separate the predicted/target feature from the predicting features
@@ -669,26 +672,22 @@ y = rev_data['net_revenue'] # Label
 # Split train and test datasets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 4)
 
-# Instantiate model with 
-regr = ElasticNet( alpha=0.00025, l1_ratio= 0.90, random_state=0, max_iter=200000, normalize=True)
-regr.fit(X, y)
+from sklearn.ensemble import RandomForestRegressor
+# Instantiate model with 1000 decision trees
+rf_rev = RandomForestRegressor(n_estimators = 1000, random_state = 42, max_depth=8,)
+# Train the model on training data
+rf_rev.fit(X_train, y_train);
 
-# Get the model coefficients
-model_coef = regr.coef_
-model_coef
-
-# Instantiate a dictionary to hold the features and their coefficients
-coef_dict = {}
-for x, i in zip(X.columns.values, model_coef):
-    coef_dict[x] = i
-
-print("The revenue model features and their coefficients are ")
-print(coef_dict)
-
-#Set up the revenue objective function for optimization using the features coefficients
-
-revenue_fxn = (tot_qty*(1138.26) - 12081.76*n_cust + 3.6630*s_price - 0.3912*c_price + 11824.110*uniq_ord 
-           - 994118.52*av_ord_freq + 25.669151*av_ord_val + 3005946.736*g_marg_per)
+# Make prediction for the test data
+rev_predictions = rf_rev.predict(X_test)
 
 
+# Performance metrics
+errors = abs(rev_predictions - y_test)
+print('Average absolute error:', round(np.mean(errors), 2), 'degrees.')
+# Calculate mean absolute percentage error (MAPE)
+mape = 100 * (errors / y_test)
+# Calculate and display accuracy
+accuracy = 100 - np.mean(mape)
+print('Accuracy:', round(accuracy, 2), '%.')
 
